@@ -1,6 +1,97 @@
 import os
 from dotenv import load_dotenv
 import requests
+from typing import Tuple, Dict, List
+import json
+
+
+def does_song_exist(uri: str) -> bool:
+    for song in songs:
+        song_uri = song["track"]["uri"]
+        if song_uri == uri:
+            return True
+    return False
+
+
+def add_song_to_playlist(song_uri: str) -> Tuple[str, bool]:
+    url: str = (
+        f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks?uris={song_uri}"
+    )
+
+    # print(url)
+
+    headers: dict = {
+        "Authorization": f"Bearer " + token,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    # Check if song exsits
+    if does_song_exist(song_uri):
+        return "Song already exists", False
+
+    res = requests.post(
+        url,
+        headers=headers,
+    )
+
+    # print(res.text)
+    return res.text, True
+
+
+def get_playlist_songs() -> Tuple[str, bool]:
+    url: str = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks?fields=items(track(name,uri))"
+
+    headers: dict = {
+        "Authorization": f"Bearer " + token,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    songs: List[str] = []
+
+    res = requests.get(
+        url,
+        headers=headers,
+    )
+
+    songs = json.loads(res.text)["items"]
+
+    # print(songs[1]["track"]["name"])
+    return songs, True
+
+
+def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
+    url: str = "https://api.spotify.com/v1/search?q="
+    headers: dict = {
+        "Authorization": f"Bearer " + token,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    finalUrl: str = f"{url} + track:{title}&type=track&limit=10"
+
+    res = requests.get(
+        finalUrl,
+        headers=headers,
+    )
+
+    res_json = json.loads(res.text)
+    items = res_json["tracks"]["items"]
+
+    for item in items:
+
+        artists = item["artists"]
+        title = item["name"]
+        # print("-" * 10)
+        # print(title)
+        for artist in artists:
+            # print(artist["name"])
+            if artist["name"] in artists_list:
+                # print("Found")
+                song_id = item["uri"]
+                print(f"Song uri : {song_id}")
+                return song_id, True
 
 
 def get_spotify_profile() -> bool:
@@ -24,22 +115,59 @@ def get_spotify_profile() -> bool:
         return False
 
 
-def get_songs() -> str:
+def format_entry(entry: str) -> Tuple[List[str], str]:
+    # Split the string by '-'
+    splitting_char: str = " ~-~ "
+
+    # Split the entry, take the frist line and split by ", " and make a list
+    artists: List[str] = entry.split(splitting_char)[0].split(", ")
+    title: str = entry.split(splitting_char)[1]
+
+    return (artists, title)
+
+
+def get_songs() -> Tuple[str, bool]:
     file_name: str = "songs.txt"
 
+    file = open(file_name, "r")
 
-def add_song(song: str, artist: str) -> bool:
-    return True
+    songs: list = []
+
+    # Read line by line
+
+    songs = file.readlines()
+
+    if len(songs) <= 0:
+        return "No songs found", False
+
+    # Create a list of list of artists and song title
+    list_of_entries: List(Tuple[List[str], str]) = []
+    list_of_entries.append((["artist1", "artist2"], "song"))
+    # print(list_of_entries)
+
+    for song in songs:
+        song_tuple = format_entry(song)
+        list_of_entries.append(song_tuple)
+        song_uri = get_song(song_tuple[0], song_tuple[1])
+        res, is_succ = add_song_to_playlist(song_uri[0])
+        print(res)
+        # print(song)
 
 
 def main():
     load_dotenv()
     global token
+    global playlist_id
     token = os.environ.get("SPOTIFY_TOKEN")
+    playlist_id = os.environ.get("SPOTIFY_PLAYLIST_ID")
 
+    global songs
+    songs = get_playlist_songs()[0]
     # get_spotify_profile()
 
-    add_song("changes", "xxxtentacion")
+    get_songs()
+
+    # add_song("changes", "xxxtentacion")
 
 
 if "__main__" == __name__:
