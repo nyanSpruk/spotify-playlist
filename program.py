@@ -36,7 +36,8 @@ def add_song_to_playlist(song_uri: str) -> Tuple[str, bool]:
     )
 
     # print(res.text)
-    return res.text, True
+    return "Song added to playlist", True
+    # return "", True
 
 
 def get_playlist_songs() -> Tuple[str, bool]:
@@ -69,7 +70,9 @@ def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
         "Content-Type": "application/json",
     }
 
-    finalUrl: str = f"{url} + track:{title}&type=track&limit=10"
+    finalUrl: str = (
+        f"{url} + track:{title} artist:{artists_list[0]}&type=track&limit=50"
+    )
 
     res = requests.get(
         finalUrl,
@@ -78,20 +81,26 @@ def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
 
     res_json = json.loads(res.text)
     items = res_json["tracks"]["items"]
+    if len(items) <= 0:
+        finalUrl: str = f"{url} + track:{title}&type=track&limit=50"
+
+        res = requests.get(finalUrl, headers)
+
+        res_json = json.loads(res.text)
+        items = res_json["tracks"]["items"]
+        if len(items) <= 0:
+            return "Song not found", False
 
     for item in items:
+        artists = [artist["name"] for artist in item["artists"]]
 
-        artists = item["artists"]
         title = item["name"]
-        # print("-" * 10)
-        # print(title)
         for artist in artists:
-            # print(artist["name"])
-            if artist["name"] in artists_list:
-                # print("Found")
+            if artist.lower() in artists_list:
                 song_id = item["uri"]
                 print(f"Song uri : {song_id}")
                 return song_id, True
+    return "Song not found", False
 
 
 def get_spotify_profile() -> bool:
@@ -117,11 +126,14 @@ def get_spotify_profile() -> bool:
 
 def format_entry(entry: str) -> Tuple[List[str], str]:
     # Split the string by '-'
-    splitting_char: str = " ~-~ "
+    splitting_char: str = " - "
 
     # Split the entry, take the frist line and split by ", " and make a list
     artists: List[str] = entry.split(splitting_char)[0].split(", ")
+    # Convert all to lowercase
+    artists = [artist.lower() for artist in artists]
     title: str = entry.split(splitting_char)[1]
+    title = title.lower()
 
     return (artists, title)
 
@@ -142,15 +154,17 @@ def get_songs() -> Tuple[str, bool]:
 
     # Create a list of list of artists and song title
     list_of_entries: List(Tuple[List[str], str]) = []
-    list_of_entries.append((["artist1", "artist2"], "song"))
-    # print(list_of_entries)
 
+    print("~~" * 10)
     for song in songs:
+        print(song)
         song_tuple = format_entry(song)
         list_of_entries.append(song_tuple)
         song_uri = get_song(song_tuple[0], song_tuple[1])
-        res, is_succ = add_song_to_playlist(song_uri[0])
+        # print(f"song uri : {song_uri}")
+        res, isSucc = add_song_to_playlist(song_uri[0])
         print(res)
+        print("~~" * 10)
         # print(song)
 
 
