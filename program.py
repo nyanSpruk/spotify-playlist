@@ -62,7 +62,9 @@ def get_playlist_songs() -> Tuple[str, bool]:
     return songs, True
 
 
-def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
+def get_song(artists_list: List[str], title_og: str) -> Tuple[str, bool]:
+    title_og = title_og.strip()
+
     url: str = "https://api.spotify.com/v1/search?q="
     headers: dict = {
         "Authorization": f"Bearer " + token,
@@ -71,7 +73,7 @@ def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
     }
 
     finalUrl: str = (
-        f"{url} + track:{title} artist:{artists_list[0]}&type=track&limit=50"
+        f"{url} + track:{title_og} artist:{artists_list[0]}&type=track&limit=50"
     )
 
     res = requests.get(
@@ -82,7 +84,7 @@ def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
     res_json = json.loads(res.text)
     items = res_json["tracks"]["items"]
     if len(items) <= 0:
-        finalUrl: str = f"{url} + track:{title}&type=track&limit=50"
+        finalUrl: str = f"{url} + track:{title_og}&type=track&limit=50"
 
         res = requests.get(finalUrl, headers)
 
@@ -96,11 +98,12 @@ def get_song(artists_list: List[str], title: str) -> Tuple[str, bool]:
 
         title = item["name"]
         for artist in artists:
-            if artist.lower() in artists_list:
+            if artist.lower() in artists_list and title.lower() == title_og:
+                print(f"Song title : {title}")
                 song_id = item["uri"]
                 print(f"Song uri : {song_id}")
                 return song_id, True
-    return "Song not found", False
+    return f"Song not found - {title_og} - {artists}", False
 
 
 def get_spotify_profile() -> bool:
