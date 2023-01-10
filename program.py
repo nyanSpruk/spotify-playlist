@@ -4,9 +4,9 @@ import requests
 
 
 def get_spotify_profile() -> bool:
-    url = "https://api.spotify.com/v1/me"
+    url: str = "https://api.spotify.com/v1/me"
 
-    headers = {
+    headers: dict = {
         "Authorization": f"Bearer " + token,
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -16,11 +16,16 @@ def get_spotify_profile() -> bool:
         url,
         headers=headers,
     )
+
     print(res.json())
     if res.status_code == 200:
         return True
     else:
         return False
+
+
+def get_songs() -> str:
+    file_name: str = "songs.txt"
 
 
 def add_song(song: str, artist: str) -> bool:
@@ -31,8 +36,10 @@ def main():
     load_dotenv()
     global token
     token = os.environ.get("SPOTIFY_TOKEN")
+
+    # get_spotify_profile()
+
     add_song("changes", "xxxtentacion")
-    get_spotify_profile()
 
 
 if "__main__" == __name__:
