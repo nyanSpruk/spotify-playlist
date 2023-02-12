@@ -238,7 +238,7 @@ def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool, List[str]]:
 
     file.close()
 
-    if len(SONGS) <= 0:
+    if len(song_list) <= 0:
         return "No songs found", False, []
 
     # Create a list of list of artists and song title
