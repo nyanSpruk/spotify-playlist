@@ -150,11 +150,6 @@ def get_song(artists_list: List[str], title_og: str) -> Tuple[str, bool]:
         number_items = res_json["tracks"]["total"]
         items = res_json["tracks"]["items"]
         if number_items <= 0:
-            # Print to file that song was not found
-            file = open("not_found.txt", "a", encoding="utf-8")
-            file.write(f"{title_og} - {artists_list}\n")
-            file.close()
-
             return "Song not found", False
 
     for item in items:
@@ -222,14 +217,14 @@ def format_entry(entry: str) -> Tuple[List[str], str]:
     return (artists, title)
 
 
-def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool]:
+def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool, List[str]]:
     """This function gets all the songs from the file
 
     Args:
         file_name (str, optional): Gets all songs from the text file. Defaults to "songs.txt".
 
     Returns:
-        Tuple[str, bool]: Returns a tuple with the status message and a boolean
+        Tuple[str, bool, List[str]]: Returns a tuple with the status message, a boolean and a list of songs
     """
     file = open(file_name, "r", encoding="utf-8")
 
@@ -244,18 +239,20 @@ def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool]:
     file.close()
 
     if len(SONGS) <= 0:
-        return "No songs found", False
+        return "No songs found", False, []
 
     # Create a list of list of artists and song title
     list_of_entries: List(Tuple[List[str], str]) = []
 
     print("~~" * 10)
+    songs_not_found = []
     for song in song_list:
         print(f"{song}\n")
         song_tuple = format_entry(song)
         list_of_entries.append(song_tuple)
         song_uri, success = get_song(song_tuple[0], song_tuple[1])
         if not success:
+            songs_not_found.append(song)
             print("Song not found")
             print("~~" * 10)
             continue
@@ -264,7 +261,7 @@ def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool]:
         print(res)
         print("~~" * 10)
         # print(song)
-    return "Songs acquired", True
+    return "Songs acquired", True, songs_not_found
 
 
 def get_user_playlists() -> Tuple[dict, bool]:
@@ -325,9 +322,6 @@ def main():
     TOKEN = os.environ.get("SPOTIFY_TOKEN")
     # PLAYLIST_ID = os.environ.get("SPOTIFY_PLAYLIST_ID")
 
-    # Clear the file "not_found.txt"
-    open("not_found.txt", "w").close()
-
     playlists, success = get_user_playlists()
     if not success:
         print("Error getting playlists")
@@ -344,9 +338,17 @@ def main():
         return
     # get_spotify_profile()
 
-    get_songs()
+    text, success, songs_not_found = get_songs()
 
-    print(f'Done! If some songs were not found, check the file "not_found.txt')
+    # Write to file the songs not found
+
+    file = open("not_found.txt", "w", encoding="utf-8")
+    for song in songs_not_found:
+        file.write(song + "\n")
+    file.close()
+
+    print('Done! If some songs were not found, check the file "not_found.txt')
+    print(f"Songs not found : {len(songs_not_found)}")
 
 
 if "__main__" == __name__:
