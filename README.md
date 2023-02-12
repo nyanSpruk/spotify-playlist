@@ -17,7 +17,7 @@ Artist - Song
 Example can be found in `songs.example.txt`
 
 To run the script:
-```python
+```sh
 python3 program.py
 ```
 
