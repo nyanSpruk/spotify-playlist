@@ -95,6 +95,10 @@ def get_playlist_songs(playlist: str = PLAYLIST_ID) -> Tuple[List[str], bool]:
         timeout=5,
     )
 
+    if res.status_code != 200:
+        error_msg = json.loads(res.text)["error"]["message"]
+        return error_msg, False
+
     song_list = json.loads(res.text)["items"]
 
     # print(songs[1]["track"]["name"])
@@ -132,15 +136,25 @@ def get_song(artists_list: List[str], title_og: str) -> Tuple[str, bool]:
     )
 
     res_json = json.loads(res.text)
+
+    number_items = res_json["tracks"]["total"]
     items = res_json["tracks"]["items"]
-    if len(items) <= 0:
+    if number_items <= 0:
         final_url: str = f"{url} + track:{title_og}&type=track&limit=50"
 
-        res = requests.get(final_url, headers, timeout=10)
+        res = requests.get(final_url, headers=headers, timeout=10)
 
         res_json = json.loads(res.text)
+        # print(res_json)
+
+        number_items = res_json["tracks"]["total"]
         items = res_json["tracks"]["items"]
-        if len(items) <= 0:
+        if number_items <= 0:
+            # Print to file that song was not found
+            file = open("not_found.txt", "a", encoding="utf-8")
+            file.write(f"{title_og} - {artists_list}\n")
+            file.close()
+
             return "Song not found", False
 
     for item in items:
@@ -149,9 +163,9 @@ def get_song(artists_list: List[str], title_og: str) -> Tuple[str, bool]:
         title = item["name"]
         for artist in artists:
             if artist.lower() in artists_list and title.lower() == title_og:
-                print(f"Song title : {title}")
+                # print(f"Song title : {title}")
                 song_id = item["uri"]
-                print(f"Song uri : {song_id}")
+                # print(f"Song uri : {song_id}")
                 return song_id, True
     return f"Song not found - {title_og} - {artists}", False
 
@@ -224,6 +238,8 @@ def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool]:
     # Read line by line
 
     song_list = file.readlines()
+    # Remove the \n from the end of the line
+    song_list = [song.strip() for song in song_list]
 
     file.close()
 
@@ -235,33 +251,102 @@ def get_songs(file_name: str = "songs.txt") -> Tuple[str, bool]:
 
     print("~~" * 10)
     for song in song_list:
-        print(song)
+        print(f"{song}\n")
         song_tuple = format_entry(song)
         list_of_entries.append(song_tuple)
-        song_uri = get_song(song_tuple[0], song_tuple[1])
-        # print(f"song uri : {song_uri}")
-        res, _ = add_song_to_playlist(song_uri[0])
+        song_uri, success = get_song(song_tuple[0], song_tuple[1])
+        if not success:
+            print("Song not found")
+            print("~~" * 10)
+            continue
+        # print(f"song uri : {song_uri[0]}")
+        res, _ = add_song_to_playlist(song_uri)
         print(res)
         print("~~" * 10)
         # print(song)
     return "Songs acquired", True
 
 
+def get_user_playlists() -> Tuple[dict, bool]:
+    """This function gets all the user playlists
+
+    Returns: Tuple[dict, bool]: Returns a tuple with the playlists list and a boolean
+
+    """
+
+    url = "https://api.spotify.com/v1/me/playlists"
+
+    headers: dict = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    res = requests.get(
+        url,
+        headers=headers,
+        timeout=5,
+    )
+
+    if res.status_code != 200:
+        return "Error getting playlists", False
+
+    res_json = json.loads(res.text)
+    items = res_json["items"]
+    playlists: List[Tuple()] = []
+    for ix, item in enumerate(items):
+        playlists.append((item["name"], item["id"]))
+        print(f"{ix}. Playlist name : {item['name']} -- id : {item['id']}")
+
+    return playlists, True
+
+
 def main():
     """Main function"""
+    # Ascii art
+    print(
+        """
+   _____             _   _  __         _____  _             _ _     _     __  __       _             
+  / ____|           | | (_)/ _|       |  __ \| |           | (_)   | |   |  \/  |     | |            
+ | (___  _ __   ___ | |_ _| |_ _   _  | |__) | | __ _ _   _| |_ ___| |_  | \  / | __ _| | _____ _ __ 
+  \___ \| '_ \ / _ \| __| |  _| | | | |  ___/| |/ _` | | | | | / __| __| | |\/| |/ _` | |/ / _ \ '__|
+  ____) | |_) | (_) | |_| | | | |_| | | |    | | (_| | |_| | | \__ \ |_  | |  | | (_| |   <  __/ |   
+ |_____/| .__/ \___/ \__|_|_|  \__, | |_|    |_|\__,_|\__, |_|_|___/\__| |_|  |_|\__,_|_|\_\___|_|   
+        | |                     __/ |                  __/ |                                         
+        |_|                    |___/                  |___/                                          
+    
+    Author : @nyanSpruk
+    """
+    )
+
     load_dotenv()
     global TOKEN
     global PLAYLIST_ID
     TOKEN = os.environ.get("SPOTIFY_TOKEN")
-    PLAYLIST_ID = os.environ.get("SPOTIFY_PLAYLIST_ID")
+    # PLAYLIST_ID = os.environ.get("SPOTIFY_PLAYLIST_ID")
+
+    # Clear the file "not_found.txt"
+    open("not_found.txt", "w").close()
+
+    playlists, success = get_user_playlists()
+    if not success:
+        print("Error getting playlists")
+        return
+
+    # Let the user choose the playlist
+    playlist_choice = int(input("Choose a playlist : "))
+    PLAYLIST_ID = playlists[playlist_choice][1]
 
     global SONGS
-    SONGS = get_playlist_songs()[0]
+    SONGS, works = get_playlist_songs(PLAYLIST_ID)
+    if not works:
+        print(SONGS)
+        return
     # get_spotify_profile()
 
     get_songs()
 
-    # add_song("changes", "xxxtentacion")
+    print(f'Done! If some songs were not found, check the file "not_found.txt')
 
 
 if "__main__" == __name__:
