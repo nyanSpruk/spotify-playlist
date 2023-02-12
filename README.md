@@ -1,4 +1,4 @@
-# spotify-playlist
+# Spotify Playlist Creator
 Add songs to spotify playlist
 
 <!-- USAGE -->
